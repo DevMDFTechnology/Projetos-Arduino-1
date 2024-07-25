@@ -1,69 +1,45 @@
-#include <SoftwareSerial.h>
+#include <Arduino.h>
 
-#define Pino_RS485_RX 10 // DO (Direct Output)
-#define Pino_RS485_TX 11 // DI (Direct Input)
-#define SSerialTxControl 3
-#define RS485Transmit HIGH
-#define RS485Receive LOW
-
-SoftwareSerial RS485Serial(Pino_RS485_RX, Pino_RS485_TX);
-
-String inputString = "";
+String dadosSerial = ""; // String para armazenar os dados recebidos
+unsigned int tempoAnterior = 0; // Tempo da última impressão
 
 void setup() {
-  Serial.begin(9600);
-  Serial.println("Módulo Receptor");
-  Serial.println("Aguardando dados...");
-  pinMode(SSerialTxControl, OUTPUT);
-  digitalWrite(SSerialTxControl, RS485Receive);
-  RS485Serial.begin(4800);
+  Serial.begin(9600); // Inicializa a comunicação serial
 }
 
 void loop() {
-  if (RS485Serial.available()) {
-    while (RS485Serial.available()) {
-      char inChar = (char)RS485Serial.read();
-      inputString += inChar;
-      if (inChar == '\n') {
-        processInput(inputString);
-        inputString = "";
-      }
+  while (Serial.available() > 0) {
+    char c = Serial.read(); 
+    
+    // Verifica se é um caractere imprimível (ignora caracteres de controle)
+    if (isPrintable(c)) {
+      dadosSerial += c; // Concatena os caracteres para formar a string completa
     }
   }
+
+  // Chamada da função bufferPrint com a condição de tempo
+  bufferPrint(dadosSerial, 500);
 }
 
-void processInput(String input) {
-  // Remove espaços em branco extras
-  input.trim();
-  
-  // Substitui todas as '/' por '' (vazio)
-  input.replace("/", "");
-  
-  // Separa os códigos por vírgula
-  int startPos = 0;
-  int commaPos = input.indexOf(',', startPos);
-  while (commaPos != -1) {
-    String codigo = input.substring(startPos, commaPos);
-    bufferPrint(codigo, 500); // Chama bufferPrint com intervalo de 500 ms
-    startPos = commaPos + 1;
-    commaPos = input.indexOf(',', startPos);
-  }
-}
-
-void bufferPrint(String codigo, unsigned long intervalo) {
-  // Remove espaços em branco extras
-  codigo.trim();
-  
-  // Substitui 'X' por 'R'
-  codigo.replace("X", "R");
-  codigo.replace("x", "r");
-  
-  // Imprime o código
-  Serial.println(codigo + ",");
-  
-  // Aguarda o intervalo desejado usando millis()
-  unsigned long startTime = millis();
-  while (millis() - startTime < intervalo) {
-    // Aguarda passivamente até completar o intervalo
+void bufferPrint(String codigo, unsigned int leituraAnterior){
+  // Verifica se passaram 500 ms desde a última impressão
+  if (millis() - tempoAnterior >= leituraAnterior && codigo.length() > 0) {
+    // Encontra a posição do primeiro caractere de vírgula
+    int posVirgula = codigo.indexOf(',');
+    if (posVirgula != -1) {
+      // Imprime a parte da string até a vírgula
+      Serial.println(codigo.substring(0, posVirgula + 1));
+      // Imprime 500 em uma nova linha
+      Serial.println(leituraAnterior);
+      // Remove a parte impressa da string
+      dadosSerial = codigo.substring(posVirgula + 1);
+    }
+    
+    // Verifica se ainda há dados para enviar
+    if (dadosSerial.length() == 0) {
+      Serial.println("\nDados enviados com sucesso!");
+    }
+    
+    tempoAnterior = millis(); // Atualiza o tempo anterior para o atual
   }
 }
