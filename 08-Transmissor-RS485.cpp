@@ -1,62 +1,70 @@
 #include <SoftwareSerial.h>
 
-// Pinos de comunicação serial do módulo RS485
 #define Pino_RS485_RX 10 // DI do Módulo RS485
 #define Pino_RS485_TX 11 // DO do Módulo RS485
+#define SSerialTxControl 3 // Pino de Controle
 
-// Pino de controle transmissão/recepção (RE, DE)
-#define SSerialTxControl 3
+bool RS485Transmit = HIGH; // Transmissor
+bool RS485Receive = LOW; // Receptor
 
-#define RS485Transmit HIGH
-#define RS485Receive LOW
+SoftwareSerial RS485Serial(Pino_RS485_RX, Pino_RS485_TX); // Definir os Pinos do Serial RS485
 
-// Cria a serial por software para conexão com módulo RS485
-SoftwareSerial RS485Serial(Pino_RS485_RX, Pino_RS485_TX);
+String dadosSerial = ""; // Lista de Dados Enviados
+String dadosRecebidos = ""; // Lista De Dados Recebidos
 
-String dadosSerial = ""; // String para armazenar os dados recebidos
 
 void setup() {
-  // Inicializa a serial do Arduino
-  Serial.begin(9600);
-  Serial.println("Modulo Transmissor");
-  Serial.println("Digite um Valor na Serial para enviar os dados ...");
-
-  pinMode(SSerialTxControl, OUTPUT);
-
-  // Inicializa a serial do módulo RS485
-  RS485Serial.begin(4800);
+  Serial.begin(9600); // Inicializa o Serial
+  Serial.println("Modulo Transmissor"); 
+  Serial.println("Digite um Valor na Serial para enviar os dados...");
+  pinMode(SSerialTxControl, OUTPUT); // Pino de Controle como Saída
+  RS485Serial.begin(4800); // Inicializa o Serial do RS485
 }
 
 void loop() {
   while (Serial.available() > 0) {
     char c = Serial.read();
-    
-    // Verifica se é um caractere imprimível (ignora caracteres de controle)
-    if (isPrintable(c)) {
-      dadosSerial += c; // Concatena os caracteres para formar a string completa
+    dadosSerial += c;
+
+    // Se encontrar um caractere de nova linha ('\n'), termina a entrada
+    if (c == '\n') {
+      enviarDados(dadosSerial); // Envia os dados acumulados
+      dadosSerial = ""; // Limpa a string para a próxima entrada
     }
   }
 
-  // Chama a função para enviar os dados se houver algo na string dadosSerial
-  if (dadosSerial.length() > 0) {
-    enviarDados(dadosSerial);
-    dadosSerial = ""; // Limpa a string após enviar os dados
+  // Recebimento de dados do Arduino 2 via RS485
+  if (RS485Serial.available()) {
+    while (RS485Serial.available()) {
+      char charReceive = (char)RS485Serial.read();
+      dadosRecebidos += charReceive;
+      if (charReceive == '\n') {
+        bufferPrint(dadosRecebidos, 500); // Processa e exibe os dados recebidos
+        dadosRecebidos = ""; // Limpa os dados recebidos
+      }
+    }
   }
 }
 
 void enviarDados(String dados) {
-  // Habilita o módulo para transmissão
-  digitalWrite(SSerialTxControl, RS485Transmit);
+  digitalWrite(SSerialTxControl, RS485Transmit); // Define como Transmissor
+  RS485Serial.println(dados); // Envia os dados pela RS485
+  RS485Serial.flush(); // Garante que todos os dados sejam enviados
+  digitalWrite(SSerialTxControl, RS485Receive); // Define como Receptor
+  Serial.println("Dados enviados: " + dados); // Exibe os dados enviados via Serial monitor
+}
 
-  // Envia os dados pela serial RS485
-  RS485Serial.println(dados);
+void bufferPrint(String codigo, unsigned long intervalo) {
+  // Remove espaços em branco extras
+  codigo.trim();
+  
+  // Imprime o código
+  Serial.print("Codigo Recebido: ");
+  Serial.println(codigo);
 
-  // Aguarda até que todos os dados sejam enviados
-  RS485Serial.flush();
-
-  // Desabilita o módulo para transmissão (configura para recepção)
-  digitalWrite(SSerialTxControl, RS485Receive);
-
-  // Feedback para o Serial Monitor
-  Serial.println("Dados enviados: " + dados);
+  // Aguarda o intervalo desejado usando millis()
+  unsigned long startTime = millis();
+  while (millis() - startTime < intervalo) {
+    // Aguarda passivamente até completar o intervalo
+  }
 }
