@@ -48,14 +48,6 @@ void processInput(String input) {
     startPos = commaPos + 1;
     commaPos = input.indexOf(',', startPos);
   }
-  
-  // Processa o último código depois da última vírgula
-  if (startPos < input.length()) {
-    String codigo = input.substring(startPos);
-    bufferPrint(codigo, 500); // Chama bufferPrint com intervalo de 500 ms
-  }
-  
-  Serial.println(""); // Adiciona uma linha em branco entre as entradas
 }
 
 void bufferPrint(String codigo, unsigned long intervalo) {
