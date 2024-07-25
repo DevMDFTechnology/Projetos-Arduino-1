@@ -9,8 +9,6 @@
 SoftwareSerial RS485Serial(Pino_RS485_RX, Pino_RS485_TX);
 
 String inputString = "";
-unsigned long previousMillis = 0; // Armazena o último tempo em que a função bufferPrint foi chamada
-const unsigned long interval = 500; // Intervalo fixo de 500 ms para todas as chamadas
 
 void setup() {
   Serial.begin(9600);
@@ -32,34 +30,51 @@ void loop() {
       }
     }
   }
-
-  // Chama bufferPrint em intervalos regulares
-  if (millis() - previousMillis >= interval) {
-    previousMillis = millis();
-    bufferPrint();
-  }
 }
 
 void processInput(String input) {
+  // Remove espaços em branco extras
   input.trim();
+  
+  // Substitui todas as '/' por '' (vazio)
   input.replace("/", "");
+  
+  // Separa os códigos por vírgula
   int startPos = 0;
   int commaPos = input.indexOf(',', startPos);
   while (commaPos != -1) {
     String codigo = input.substring(startPos, commaPos);
-    bufferPrint(codigo);
+    bufferPrint(codigo, 500); // Chama bufferPrint com intervalo de 500 ms
     startPos = commaPos + 1;
     commaPos = input.indexOf(',', startPos);
   }
 }
 
-void bufferPrint(String codigo = "") {
-  if (codigo.length() > 0) {
-    codigo.trim();
-    codigo.replace("X", "R");
-    codigo.replace("x", "r");
-    
-    // Imprime o código
-    Serial.println(codigo + ",");
+void bufferPrint(String codigo, unsigned long intervalo) {
+  // Remove espaços em branco extras
+  codigo.trim();
+  
+  // Substitui 'X' por 'R'
+  codigo.replace("X", "R");
+  codigo.replace("x", "r");
+  
+  // Imprime o código
+  Serial.println(codigo + ",");
+
+  //Envia os Dados
+  enviarDados(codigo);
+  
+  // Aguarda o intervalo desejado usando millis()
+  unsigned long startTime = millis();
+  while (millis() - startTime < intervalo) {
+    // Aguarda passivamente até completar o intervalo
   }
+}
+
+void enviarDados(String dados) {
+  digitalWrite(SSerialTxControl, RS485Transmit);
+  RS485Serial.println(dados); // Envia os dados pela RS485
+  RS485Serial.flush(); // Garante que todos os dados sejam enviados
+  digitalWrite(SSerialTxControl, RS485Receive);
+  Serial.println("Dados enviados: " + dados); // Exibe os dados enviados via Serial monitor
 }
